@@ -8,6 +8,8 @@ from .index import Index
 from .commit import create_commit
 from .refs import create_branch, list_branches, checkout
 from .checkout import checkout_branch
+from .status import get_status
+from .diff import diff_working_vs_index
 
 # --------------------------
 # Command implementations
@@ -62,6 +64,39 @@ def cmd_checkout(args):
     except Exception as e:
         print(f"Error: {e}")
 
+def cmd_status(args):
+    repo = Repository.find(Path.cwd())
+    status = get_status(repo)
+
+    if status.staged:
+        print("Changes to be committed:")
+        for p in status.staged:
+            print(f"  {p}")
+
+    if status.modified:
+        print("\nChanges not staged for commit:")
+        for p in status.modified:
+            print(f"  {p}")
+
+    if status.untracked:
+        print("\nUntracked files:")
+        for p in status.untracked:
+            print(f"  {p}")
+
+    if not (status.staged or status.modified or status.untracked):
+        print("Working tree clean")
+
+
+def cmd_diff(args):
+    repo = Repository.find(Path.cwd())
+    diffs = diff_working_vs_index(repo)
+
+    if not diffs:
+        return
+
+    for d in diffs:
+        print(d.diff)
+
 
 # --------------------------
 # Argument parser setup
@@ -94,6 +129,14 @@ def main():
     sp_checkout = subparsers.add_parser("checkout", help="Switch branches")
     sp_checkout.add_argument("name", help="Branch name to checkout")
     sp_checkout.set_defaults(func=cmd_checkout)
+    
+    # status
+    sp_status = subparsers.add_parser("status", help="Show working tree status")
+    sp_status.set_defaults(func=cmd_status)
+
+    # diff
+    sp_diff = subparsers.add_parser("diff", help="Show unstaged changes")
+    sp_diff.set_defaults(func=cmd_diff)
 
     # Parse arguments and dispatch
     args = parser.parse_args()
